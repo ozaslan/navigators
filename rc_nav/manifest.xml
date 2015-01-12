@@ -1,0 +1,20 @@
+<package>
+  <description brief="rc_nav">
+
+     rc_nav
+
+  </description>
+  <author>ozaslan</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/rc_nav</url>
+  <depend package="roscpp"/>
+  <depend package="nav_msgs"/>
+  <depend package="sensor_msgs"/>
+  <depend package="com_msgs"/>
+  <depend package="cont_msgs"/>
+  <depend package="utilities"/>
+
+</package>
+
+

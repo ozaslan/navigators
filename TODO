@@ -1,0 +1,2 @@
+-- Implement classes (not nodes) for each different navigation method. Keep a single node that can use all of these classes. Method of choice should be determined by input parameters.
+** For this, have an abstract class. From that, derive particularized classes. This will ease implementation of the node. (guess you have different function names for each navigator, what a nightmare!)
