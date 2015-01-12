@@ -20,6 +20,8 @@ sensor_msgs::PointCloud2 pcl_msg;
 cont_msgs::Heading		 heading_msg;
 com_msgs::RC			 rc_msg;
 
+bool got_odom_msg = false;
+
 /*
 -- loop
 
@@ -33,16 +35,16 @@ int loop(const ros::NodeHandle &n);
 
 int main(int argc, char* argv[]){
 
-        ros::init(argc, argv, "carters_estimator");
-        ros::NodeHandle n("~");
+	ros::init(argc, argv, "carters_estimator");
+	ros::NodeHandle n("~");
 
-        process_inputs(n);
+	process_inputs(n);
 
-        setup_messaging_interface(n);
+	setup_messaging_interface(n);
         
-        loop(n);        
+	loop(n);        
         
-        return 1;
+    return 1;
 }
 
 int process_inputs(const ros::NodeHandle &n)
@@ -93,6 +95,7 @@ int setup_messaging_interface(ros::NodeHandle &n)
 }
 
 void odom_callback(const nav_msgs::Odometry &msg){
+	got_odom_msg = true;
 	odom_msg = msg;
 	if(debug_mode)
 		ROS_INFO("RC NAV : Got ODOM message!");
@@ -104,6 +107,10 @@ void rc_callback(const com_msgs::RC &msg){
 	// -- generate the 'path_msg'
 	// -- generate the 'goal_msg'
 	// -- publish all above
+
+	if(got_odom_msg == false)
+		return;
+
 	rc_msg = msg;
 
 	prev_time = curr_time;
@@ -180,6 +187,7 @@ void rc_callback(const com_msgs::RC &msg){
 	quat(1) = heading_msg.quat_from.x;
 	quat(2) = heading_msg.quat_from.y;
 	quat(3) = heading_msg.quat_from.z;
+	
 	Vector3d rpy = quat2rpy(quat);
 	rpy(2) += dt * psi_vel;
 	quat = rpy2quat(rpy);
