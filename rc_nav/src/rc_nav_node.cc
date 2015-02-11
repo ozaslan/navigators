@@ -55,15 +55,15 @@ int process_inputs(const ros::NodeHandle &n)
 	n.param("max_lin_speed", max_lin_speed, 1.0);
 	n.param("max_rot_speed", max_rot_speed, 0.50);
 	n.param("min_rc_value", min_rc_value,    0.0);
-	n.param("max_rc_value", max_rc_value, 2000.0);
+	n.param("max_rc_value", max_rc_value, 1000.0);
 	
-	n.param("refresh_rate"    , refresh_rate    , 100.0);
+	n.param("refresh_rate"    , refresh_rate    , 300.0);
 	n.param("debug_mode"      , debug_mode      , false);
 
-	n.param("dead_zone_x"   , dead_zone_x  ,  75.0); // forward
-	n.param("dead_zone_y"   , dead_zone_y  ,  75.0); // lateral
-	n.param("dead_zone_z"   , dead_zone_z  , 400.0); // vertical
-	n.param("dead_zone_psi" , dead_zone_psi,  75.0);
+	n.param("dead_zone_x"   , dead_zone_x  ,  15.0); // forward
+	n.param("dead_zone_y"   , dead_zone_y  ,  15.0); // lateral
+	n.param("dead_zone_z"   , dead_zone_z  ,  20.0); // vertical
+	n.param("dead_zone_psi" , dead_zone_psi,  15.0);
 
 	ROS_INFO(" ---------------- RC NAVIGATOR ------------------");
 	ROS_INFO("[debug_mode] ----------- : [%s]", debug_mode ? "TRUE" : "FALSE");
@@ -85,8 +85,8 @@ int setup_messaging_interface(ros::NodeHandle &n)
 {
 	odom_subs    = n.subscribe("odom" , 10,    odom_callback, ros::TransportHints().tcpNoDelay());
 	rc_subs 	 = n.subscribe("rc"   , 10,		 rc_callback, ros::TransportHints().tcpNoDelay());
-	pcl_subs 	 = n.subscribe("3Dmap", 10,	    pcl_callback, ros::TransportHints().tcpNoDelay());
-	gridmap_subs = n.subscribe("2Dmap", 10, gridmap_callback, ros::TransportHints().tcpNoDelay());
+	pcl_subs 	 = n.subscribe("map3D", 10,	    pcl_callback, ros::TransportHints().tcpNoDelay());
+	gridmap_subs = n.subscribe("map2D", 10, gridmap_callback, ros::TransportHints().tcpNoDelay());
 	heading_publ = n.advertise<cont_msgs::Heading>("heading", 10);
 	path_publ	 = n.advertise<nav_msgs::Path    >("path"   , 10);
 	goal_publ	 = n.advertise<nav_msgs::Odometry>("goal"   , 10);
@@ -108,8 +108,10 @@ void rc_callback(const com_msgs::RC &msg){
 	// -- generate the 'goal_msg'
 	// -- publish all above
 
-	if(got_odom_msg == false)
-		return;
+	//###
+	//if(got_odom_msg == false)
+	//	return;
+	odom_msg.pose.pose.orientation.w = 1;
 
 	rc_msg = msg;
 
@@ -123,6 +125,9 @@ void rc_callback(const com_msgs::RC &msg){
 	int y_stick_pos   = rc_msg.right_rl - mid_rc_value;
 	int z_stick_pos   =  rc_msg.left_fb - mid_rc_value;
 	int psi_stick_pos =  rc_msg.left_rl - mid_rc_value;
+
+	//cout << x_stick_pos << " " << y_stick_pos << " " << z_stick_pos << " " << psi_stick_pos << endl;
+
 	// ---
 	if(x_stick_pos > dead_zone_x)
 		x_stick_pos -= dead_zone_x;
@@ -152,10 +157,10 @@ void rc_callback(const com_msgs::RC &msg){
 	else
 		psi_stick_pos = 0;
 
-	double x_vel   = (double)x_stick_pos   / (rc_vals_span - dead_zone_x) * max_lin_speed;
-	double y_vel   = (double)y_stick_pos   / (rc_vals_span - dead_zone_y) * max_lin_speed;
-	double z_vel   = (double)z_stick_pos   / (rc_vals_span - dead_zone_z) * max_lin_speed;
-	double psi_vel = (double)psi_stick_pos / (rc_vals_span - dead_zone_x) * max_rot_speed;
+	double x_vel   = -(double)x_stick_pos   / (rc_vals_span - dead_zone_x) * max_lin_speed;
+	double y_vel   =  (double)y_stick_pos   / (rc_vals_span - dead_zone_y) * max_lin_speed;
+	double z_vel   = -(double)z_stick_pos   / (rc_vals_span - dead_zone_z) * max_lin_speed;
+	double psi_vel =  (double)psi_stick_pos / (rc_vals_span - dead_zone_x) * max_rot_speed;
 
 	dt = Dt(curr_time, prev_time);
 
