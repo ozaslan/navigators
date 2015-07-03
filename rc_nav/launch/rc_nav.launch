@@ -1,0 +1,32 @@
+<launch>
+
+### Start the RC Navigator node
+
+<node pkg="rc_nav"
+    name="rc_nav"
+    type="rc_nav"
+    output="screen">
+
+    <param name="max_lin_speed"  value="1.0" />
+    <param name="max_rot_speed"  value="0.401" />
+    <param name="refresh_rate"   value="300.0" />
+    <param name="debug_mode"     value="false" />
+    <param name="rc_config_path" value="$(find rc_proc)/config/ins_khex_rc_config.yaml" />
+</node>
+
+</launch>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

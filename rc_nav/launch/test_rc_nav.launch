@@ -1,0 +1,61 @@
+<launch>
+
+`<node pkg="pid_cont"
+    name="pid_cont"
+    type="pid_cont_node"
+    output="screen">
+
+    <remap from="~heading" to="/rc_nav/heading" />
+    <remap from="~pdcmd"   to="/khex_com/cmd" />
+
+    <rosparam file="$(find pid_cont)/presets/insp_khex_params.yaml"/>
+
+  </node>
+
+
+  <include file="$(find khex_com)/launch/khex_com.launch" />
+  <include file="$(find vicon_odom)/launch/test.launch" />
+
+  <node pkg="rc_nav"
+    name="rc_nav"
+    type="rc_nav"
+    output="screen">
+
+    <remap from="~rc"     to="/khex_com/rc" />
+    <remap from="~odom"   to="/vicon/InsKHex_odom" />
+    <remap from="~imu"    to="/khex_com/imu" />
+
+    <param name="max_lin_speed"  value="1.0" />
+    <param name="max_rot_speed"  value="0.401" />
+    <param name="refresh_rate"   value="300.0" />
+    <param name="debug_mode"     value="false" />
+    <param name="rc_config_path" value="$(find rc_proc)/config/ins_khex_rc_config.yaml" />
+  </node>
+
+   <node name="odom_visualization"
+           pkg ="odom_visualization"
+           type="odom_visualization_node"
+           output="screen" >
+                            
+      <remap from="~odom" to="/vicon/InsKHex_odom"/>
+      <rosparam file="$(find odom_visualization)/config/config01.yaml" />
+                                    
+   </node>
+
+ 
+  </launch>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -10,11 +10,11 @@
   <url>http://ros.org/wiki/rc_nav</url>
   <depend package="roscpp"/>
   <depend package="nav_msgs"/>
-  <depend package="sensor_msgs"/>
   <depend package="com_msgs"/>
   <depend package="cont_msgs"/>
-  <depend package="utilities"/>
-
+  <depend package="utils"/>
+  <depend package="rc_proc"/>
+  <rosdep name="yaml-cpp" />
 </package>
 
 

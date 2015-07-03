@@ -1,0 +1,68 @@
+<launch>
+
+### Start the RC Navigator node
+
+<param name = "use_sim_time" value = "true" />
+
+<arg name="bagfile_path"  value="$(env ROS_DATASET_PATH)/temp/vicon_2015-06-28-17-13-56.bag" />
+
+<node	pkg ="rosbag"
+		name  ="rosbag"
+		type  ="play"
+    output="screen"
+    args  ="--loop --rate=1.0 $(arg bagfile_path) --start=45 --duration=3 --clock ">
+</node>
+
+#### start RC_NAV node ##############################
+
+<node pkg="rc_nav"
+    name="rc_nav"
+    type="rc_nav"
+    output="screen">
+
+    <param name="max_lin_speed"  value="1.0" />
+    <param name="max_rot_speed"  value="0.401" />
+    <param name="refresh_rate"   value="300.0" />
+    <param name="debug_mode"     value="false" />
+    <param name="rc_config_path" value="$(find rc_proc)/config/ins_khex_rc_config.yaml" />
+</node>
+
+<node name="odom_visualization"
+        pkg ="odom_visualization"
+        type="odom_visualization_node"
+        output="screen" >
+                         
+  <remap from="~odom" to="/vicon/InsKHex_odom"/>
+  <rosparam file="$(find odom_visualization)/config/config01.yaml" />
+                                
+</node>
+
+
+#### start RVIZ Visualization ##############################
+
+<node	pkg="rviz"
+		name="rviz"
+		type="rviz"
+		output="screen"
+    args  ="-d $(find rc_nav)/rviz/rc_nav.rviz">
+		<param name="fixed-frame"	 value="world"/>
+</node>
+
+<node pkg="tf" type="static_transform_publisher" name="vicon_link" args="0 0 0 0 0 0 /vicon /world 100"/>
+
+</launch>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
