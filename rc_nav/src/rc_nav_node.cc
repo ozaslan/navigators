@@ -9,6 +9,10 @@ nav_msgs::Odometry odom_msg;
 sensor_msgs::Imu imu_msg;
 RCProc rc_proc;
 
+Eigen::Matrix4d init_pose_inv;
+double controller_yaw_offset = 0;
+double controller_yaw = 0;
+
 /*
   - process the inputs
   - setup messaging interface
@@ -40,6 +44,14 @@ int process_inputs(const ros::NodeHandle &n)
   n.param("refresh_rate"    , refresh_rate    , 300.0);
   n.param("debug_mode"      , debug_mode      , false);
   n.param("rc_config_path"  , rc_config_path  , string(""));
+  n.param("control_frame"   , control_frame   , string("world"));
+  
+  std::transform(control_frame.begin(), control_frame.end(), control_frame.begin(), ::tolower);
+
+  if(control_frame != "robot" && control_frame != "world"){
+    ROS_WARN("Invalid 'control_frame' parameter. Setting to default value 'world'");
+    control_frame = "world";
+  }
 
   // RC Related params
   rc_proc.load_params(rc_config_path);
@@ -50,6 +62,7 @@ int process_inputs(const ros::NodeHandle &n)
   ROS_INFO("[refresh_rate] --------- : [%.3lf]", refresh_rate);
   ROS_INFO("[rc_config_path] ------- : [%s]" , rc_config_path.c_str());
   ROS_INFO("max_[lin, rot]_speed --- : [%.3lf, %.3lf]", max_lin_speed , max_rot_speed);
+  ROS_INFO("[control_frame] -------- : [%s]", control_frame.c_str());
   rc_proc.print_params();
   ROS_INFO(" ------------------------------------------------");
 
@@ -93,10 +106,44 @@ void imu_callback(const sensor_msgs::Imu &msg){
   imu_msg = msg;
   if(debug_mode)
     ROS_INFO("RC NAV : Got IMU message!");
+
+  double yaw = utils::trans::imu2rpy(imu_msg)(2);
+
+  static bool first_imu_msg = true;
+  if(first_imu_msg == true){
+    first_imu_msg = false;
+    controller_yaw_offset = yaw;
+  }
+
+  controller_yaw = utils::fix_angle(yaw - controller_yaw_offset);
+
 }
 
 void odom_callback(const nav_msgs::Odometry &msg){
-  odom_msg = msg;
+  static bool first_odom_msg = true;
+  
+  Eigen::Matrix4d se3 = utils::trans::odom2se3(msg);
+  Eigen::Vector4d quat;
+  // Set the initial yaw with the very first odometry message
+  if(first_odom_msg == true){
+      init_pose_inv = se3.inverse();
+      first_odom_msg = false;
+  }
+
+  odom_msg = utils::trans::se32odom(Eigen::Matrix4d(init_pose_inv * se3));
+
+  // Transform the velocity into the initial frame
+  Eigen::Vector3d vel;
+  vel(0) = odom_msg.twist.twist.linear.x;
+  vel(1) = odom_msg.twist.twist.linear.y;
+  vel(2) = odom_msg.twist.twist.linear.z;
+  vel = init_pose_inv.topLeftCorner<3, 3>() * vel;
+  odom_msg.twist.twist.linear.x = vel(0);
+  odom_msg.twist.twist.linear.y = vel(1);
+  odom_msg.twist.twist.linear.z = vel(2);
+
+  odom_msg.twist.twist.angular = msg.twist.twist.angular;
+
   if(debug_mode)
     ROS_INFO("RC NAV : Got ODOM message!");
 }
@@ -106,17 +153,20 @@ void rc_callback(const com_msgs::RC &msg){
  
   rc_proc.process(msg, rc_x, rc_y, rc_z, rc_psi);
 
-  /*
-  cout << "rc_x   = " << rc_x   << endl;
-  cout << "rc_y   = " << rc_y   << endl;
-  cout << "rc_z   = " << rc_z   << endl;
-  cout << "rc_psi = " << rc_psi << endl;
-  */
-
   double x_vel   = rc_x;
   double y_vel   = rc_y;
   double z_vel   = rc_z;
   double psi_vel = rc_psi * max_rot_speed;
+
+  if(control_frame == "robot"){
+    // Transform velocity vector into "robot" frame
+    Eigen::Vector3d vel(x_vel, y_vel, z_vel);
+    Eigen::Matrix3d dcm = utils::trans::odom2se3(odom_msg).topLeftCorner<3, 3>();
+    vel = dcm.transpose() * vel;
+    x_vel = vel(0);
+    y_vel = vel(1);
+    z_vel = vel(2);
+  }
 
   double vel_norm = sqrt(rc_x * rc_x + rc_y * rc_y + rc_z * rc_z) + 1e-6;
 
@@ -125,11 +175,10 @@ void rc_callback(const com_msgs::RC &msg){
     y_vel *= max_lin_speed / vel_norm;
     z_vel *= max_lin_speed / vel_norm;
   }
-
+ 
   static ros::Time prev_time = ros::Time::now();
   ros::Time curr_time = ros::Time::now();
   
-  double dt = (curr_time - prev_time).toSec();
   prev_time = curr_time;
   static cont_msgs::Heading heading_msg;
 
@@ -137,46 +186,31 @@ void rc_callback(const com_msgs::RC &msg){
   heading_msg.header.frame_id = "world";
   heading_msg.header.seq++;
 
+  // -------------------------------------------------------------------------------------------- //
+  // Correct the yaw angle to controller yaw (funny :) )
+  Vector3d rpy = utils::trans::quat2rpy(utils::trans::quat2quat(odom_msg.pose.pose.orientation));
+  rpy(2) = controller_yaw;
+  odom_msg.pose.pose.orientation = utils::trans::quat2quat(utils::trans::rpy2quat(rpy));
+  // -------------------------------------------------------------------------------------------- //
+
   heading_msg.pos_from = odom_msg.pose.pose.position;
   heading_msg.vel_from = odom_msg.twist.twist.linear;
   heading_msg.acc_from.x = 
     heading_msg.acc_from.y = 
     heading_msg.acc_from.z = 0;
-  heading_msg.quat_from  = imu_msg.orientation;
+  heading_msg.quat_from  = odom_msg.pose.pose.orientation;
   heading_msg.omega_from = odom_msg.twist.twist.angular;
   heading_msg.domega_from.x = 
     heading_msg.domega_from.y = 
     heading_msg.domega_from.z = 0;
 
   heading_msg.pos_to = heading_msg.pos_from;
-  //heading_msg.pos_to.x = heading_msg.pos_from.x;
-  //heading_msg.pos_to.y = heading_msg.pos_from.y;
-  //heading_msg.pos_to.z = heading_msg.pos_from.z;
   heading_msg.vel_to.x = x_vel;
   heading_msg.vel_to.y = y_vel;
   heading_msg.vel_to.z = z_vel;
   heading_msg.acc_to = heading_msg.acc_from;
 
-  // quat comes here
-  Vector4d quat;
-  quat(0) = heading_msg.quat_from.w;
-  quat(1) = heading_msg.quat_from.x;
-  quat(2) = heading_msg.quat_from.y;
-  quat(3) = heading_msg.quat_from.z;
-
-  Vector3d rpy = utils::trans::quat2rpy(quat);
-  rpy(2) += dt * psi_vel;
-
-	rpy(2) = 0; //###
-
-  quat = utils::trans::rpy2quat(rpy);
-  heading_msg.quat_to.w = quat(0);
-  heading_msg.quat_to.x = quat(1);
-  heading_msg.quat_to.y = quat(2);
-  heading_msg.quat_to.z = quat(3);
-
-	heading_msg.quat_from = heading_msg.quat_to; //###
-  //
+  heading_msg.quat_to = heading_msg.quat_from;
   heading_msg.omega_to.x = 
     heading_msg.omega_to.y = 0; 
   heading_msg.omega_to.z = psi_vel;
@@ -187,6 +221,3 @@ void rc_callback(const com_msgs::RC &msg){
   if(debug_mode)
     ROS_INFO("RC NAV : Got RC message!");
 }
-
-
-

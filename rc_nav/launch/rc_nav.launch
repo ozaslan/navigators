@@ -11,6 +11,7 @@
     <param name="max_rot_speed"  value="0.401" />
     <param name="refresh_rate"   value="300.0" />
     <param name="debug_mode"     value="false" />
+    <param name="control_frame"  value="world" />
     <param name="rc_config_path" value="$(find rc_proc)/config/ins_khex_rc_config.yaml" />
 </node>
 

@@ -23,6 +23,11 @@ double max_lin_speed,
 // Flags for the node
 double refresh_rate;
 bool   debug_mode;
+string control_frame;	// This can be either 'world' or 'robot'.
+						// In the former case the control inputs are 
+						// interpreted in the world frame. Similar for the
+						// latter case. The latter option is preferrable
+						// for an experience similar to manual flight.
 
 int  process_inputs(const ros::NodeHandle &n);
 int  setup_messaging_interface(ros::NodeHandle &n);
