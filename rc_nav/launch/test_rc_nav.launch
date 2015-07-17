@@ -30,6 +30,12 @@
     <param name="refresh_rate"   value="300.0" />
     <param name="debug_mode"     value="false" />
     <param name="control_frame"  value="world" />
+    <param name="max_x_coord"    value="+1" />
+    <param name="min_x_coord"    value="-1" />
+	<param name="max_y_coord"    value="+1" />
+    <param name="min_y_coord"    value="-1" />
+	<param name="max_z_coord"    value="+1" />
+    <param name="min_z_coord"    value="-1" />
     <param name="rc_config_path" value="$(find rc_proc)/config/ins_khex_rc_config.yaml" />
   </node>
 

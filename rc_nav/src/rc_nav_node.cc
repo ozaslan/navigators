@@ -45,7 +45,14 @@ int process_inputs(const ros::NodeHandle &n)
   n.param("debug_mode"      , debug_mode      , false);
   n.param("rc_config_path"  , rc_config_path  , string(""));
   n.param("control_frame"   , control_frame   , string("world"));
-  
+
+  n.param("min_x_coor", bounding_box[0], -1.0);
+  n.param("max_x_coor", bounding_box[1], +1.0);
+  n.param("min_y_coor", bounding_box[2], -1.0);
+  n.param("max_y_coor", bounding_box[3], +1.0);
+  n.param("min_z_coor", bounding_box[4], -1.0);
+  n.param("max_z_coor", bounding_box[5], +1.0);
+
   std::transform(control_frame.begin(), control_frame.end(), control_frame.begin(), ::tolower);
 
   if(control_frame != "robot" && control_frame != "world"){
@@ -62,6 +69,9 @@ int process_inputs(const ros::NodeHandle &n)
   ROS_INFO("[refresh_rate] --------- : [%.3lf]", refresh_rate);
   ROS_INFO("[rc_config_path] ------- : [%s]" , rc_config_path.c_str());
   ROS_INFO("max_[lin, rot]_speed --- : [%.3lf, %.3lf]", max_lin_speed , max_rot_speed);
+  ROS_INFO("[min, max]_x_coord ----- : [%.3lf, %.3lf]", bounding_box[0] , bounding_box[1]);
+  ROS_INFO("[min, max]_y_coord ----- : [%.3lf, %.3lf]", bounding_box[2] , bounding_box[3]);
+  ROS_INFO("[min, max]_z_coord ----- : [%.3lf, %.3lf]", bounding_box[4] , bounding_box[5]);
   ROS_INFO("[control_frame] -------- : [%s]", control_frame.c_str());
   rc_proc.print_params();
   ROS_INFO(" ------------------------------------------------");
@@ -128,6 +138,12 @@ void odom_callback(const nav_msgs::Odometry &msg){
   if(first_odom_msg == true){
       init_pose_inv = se3.inverse();
       first_odom_msg = false;
+      bounding_box[0] += se3(0, 3);
+      bounding_box[1] -= se3(0, 3);
+      bounding_box[2] += se3(1, 3);
+      bounding_box[3] -= se3(1, 3);
+      bounding_box[4] += se3(2, 3);
+      bounding_box[5] -= se3(2, 3);
   }
 
   odom_msg = utils::trans::se32odom(Eigen::Matrix4d(init_pose_inv * se3));
@@ -150,7 +166,12 @@ void odom_callback(const nav_msgs::Odometry &msg){
 
 void rc_callback(const com_msgs::RC &msg){
   double rc_x, rc_y, rc_z, rc_psi;
- 
+
+  static ros::Time prev_time = msg.header.stamp;
+  ros::Time curr_time = msg.header.stamp;
+  double dt = (curr_time - prev_time).toSec();
+  prev_time = curr_time;
+
   rc_proc.process(msg, rc_x, rc_y, rc_z, rc_psi);
 
   double x_vel   = rc_x;
@@ -176,10 +197,6 @@ void rc_callback(const com_msgs::RC &msg){
     z_vel *= max_lin_speed / vel_norm;
   }
  
-  static ros::Time prev_time = ros::Time::now();
-  ros::Time curr_time = ros::Time::now();
-  
-  prev_time = curr_time;
   static cont_msgs::Heading heading_msg;
 
   heading_msg.header.stamp = curr_time;
@@ -204,7 +221,10 @@ void rc_callback(const com_msgs::RC &msg){
     heading_msg.domega_from.y = 
     heading_msg.domega_from.z = 0;
 
-  heading_msg.pos_to = heading_msg.pos_from;
+  //heading_msg.pos_to = heading_msg.pos_from;
+  heading_msg.pos_to.x = utils::clamp(heading_msg.pos_from.x + dt * x_vel, bounding_box[0], bounding_box[1]);
+  heading_msg.pos_to.y = utils::clamp(heading_msg.pos_from.y + dt * y_vel, bounding_box[2], bounding_box[3]);
+  heading_msg.pos_to.z = utils::clamp(heading_msg.pos_from.z + dt * z_vel, bounding_box[4], bounding_box[5]);
   heading_msg.vel_to.x = x_vel;
   heading_msg.vel_to.y = y_vel;
   heading_msg.vel_to.z = z_vel;
