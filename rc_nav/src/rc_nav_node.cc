@@ -4,6 +4,7 @@ ros::Subscriber odom_subs;
 ros::Subscriber imu_subs;
 ros::Subscriber rc_subs;
 ros::Publisher  heading_publ;
+ros::Publisher  odom_publ;
 
 nav_msgs::Odometry odom_msg;
 sensor_msgs::Imu imu_msg;
@@ -99,6 +100,7 @@ int setup_messaging_interface(ros::NodeHandle &n)
   odom_subs     = n.subscribe("odom" , 10, odom_callback, ros::TransportHints().tcpNoDelay());
   rc_subs       = n.subscribe("rc"   , 10,   rc_callback, ros::TransportHints().tcpNoDelay());
   heading_publ  = n.advertise<cont_msgs::Heading>("heading", 10);
+  odom_publ     = n.advertise<nav_msgs::Odometry>("goal", 10);
 
   return 0;
 }
@@ -237,6 +239,18 @@ void rc_callback(const com_msgs::RC &msg){
   heading_msg.domega_to = heading_msg.domega_from;
 
   heading_publ.publish(heading_msg);
+
+  static nav_msgs::Odometry goal;
+  goal.header.seq++;
+  goal.header.stamp = curr_time;
+  goal.header.frame_id = "world";
+
+  goal.pose.pose.position    = heading_msg.pos_to;
+  goal.pose.pose.orientation = heading_msg.quat_to;
+  goal.twist.twist.linear    = heading_msg.vel_to;
+  goal.twist.twist.angular   = heading_msg.omega_to;
+
+  odom_publ.publish(goal);
 
   if(debug_mode)
     ROS_INFO("RC NAV : Got RC message!");
