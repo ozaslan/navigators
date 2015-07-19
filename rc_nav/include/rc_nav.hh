@@ -19,11 +19,14 @@ using namespace std;
 
 // Max norm of the velocity vector and yawing speed
 double max_lin_speed,
-	   max_rot_speed;
+	   max_rot_speed,
+		max_x_speed,
+		max_y_speed,
+		max_z_speed;
 // The bounding box constrains the extreme coordinates of the space that 
 // rc_nav generates commands to fly towards. The first odometry reading
 // defines the center of the box.
-double bounding_box[6];
+double bounding_box[8];
 // Flags for the node
 double refresh_rate;
 bool   debug_mode;

@@ -1,13 +1,16 @@
 refresh_rate: 300.0
 debug_mode  : FALSE
 
-max_lin_speed: 1.0
+max_lin_speed: 2.0
+max_x_speed: 0.50
+max_y_speed: 2.0
+max_z_speed: 2.0
 max_rot_speed: 1.0
 control_frame: "world"
-max_x_coord  : +1
-min_x_coord  : -1
-max_y_coord  : +1
-min_y_coord  : -1
-max_z_coord  : +1
-min_z_coord  : -1
+max_x_coor  : +100
+min_x_coor  : -2
+max_y_coor  : +1
+min_y_coor  : -1
+max_z_coor  : +1
+min_z_coor  : -1
 

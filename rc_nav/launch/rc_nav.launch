@@ -14,15 +14,6 @@
     <rosparam file="$(find rc_nav)/config/towne_base.yaml" />                          
     <param name="rc_config_path" value="$(find rc_proc)/config/ins_khex_rc_config.yaml" />
   </node>
-
-   <node name="odom_visualization"
-           pkg ="odom_visualization"
-           type="odom_visualization_node"
-           output="screen" >
-                            
-      <remap from="~odom" to="/rc_nav/goal"/>
-      <rosparam file="$(find odom_visualization)/config/config03.yaml" />                          
-   </node>
 </launch>
 
 
