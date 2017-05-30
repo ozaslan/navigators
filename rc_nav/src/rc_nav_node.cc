@@ -148,6 +148,7 @@ void odom_callback(const nav_msgs::Odometry &msg){
   if(first_odom_msg == true){
       init_pose_inv = se3.inverse();
       init_pose_inv.topRightCorner<3, 1>().fill(0);
+      init_pose_inv = Eigen::Matrix4d::Identity();
 
       traj_pos(0) = msg.pose.pose.position.x;
       traj_pos(1) = msg.pose.pose.position.y;
@@ -208,9 +209,11 @@ void rc_callback(const com_msgs::RC &msg){
 
   double vel_norm = sqrt(rc_x * rc_x + rc_y * rc_y + rc_z * rc_z) + 1e-6;
 
+  /*
 	x_vel = utils::clamp(x_vel, -max_x_speed, max_x_speed);
 	y_vel = utils::clamp(y_vel, -max_y_speed, max_y_speed);
 	z_vel = utils::clamp(z_vel, -max_z_speed, max_z_speed);
+  */
 
   if(vel_norm > max_lin_speed){
     x_vel *= max_lin_speed / vel_norm;
@@ -244,9 +247,12 @@ void rc_callback(const com_msgs::RC &msg){
 
   //heading_msg.pos_to = heading_msg.pos_from;
 
-  traj_pos(0) = utils::clamp(traj_pos(0) + dt * x_vel, bounding_box[0], bounding_box[1]);
+  traj_pos(0) = utils::clamp(traj_pos(0) + 3 * dt * x_vel, bounding_box[0], bounding_box[1]);
   traj_pos(1) = utils::clamp(traj_pos(1) + dt * y_vel, bounding_box[2], bounding_box[3]);
   traj_pos(2) = utils::clamp(traj_pos(2) + dt * z_vel, bounding_box[4], bounding_box[5]);
+
+  traj_pos(1) = 0;
+  traj_pos(2) = -1;
 
   heading_msg.pos_to.x = traj_pos(0);
   heading_msg.pos_to.y = traj_pos(1);
